@@ -1,0 +1,174 @@
+/**
+ * Store that gets data from any set of web services that implement
+ * the JBrowse REST API.
+ */
+define([
+           'dojo/_base/declare',
+           'dojo/request',
+           'JBrowse/Store/SeqFeature/REST'
+       ],
+       function(
+           declare,
+           dojoRequest,
+           REST
+       ) {
+
+return declare( REST,
+{
+    _post: function( request, callback, errorCallback ) {
+        var thisB = this;
+        dojoRequest(
+            request.url,
+            {
+                method: 'POST',
+                handleAs: 'json',
+                data: request.data,
+             }
+        ).then(
+            callback,
+            this._errorHandler( errorCallback )
+         );
+
+    },
+
+    getGlobalStats: function( callback, errorCallback ) {
+        var query = `
+            {
+            findFeatures(argorgname:"yeast",argrefseq:"chrI", argsotype:"mRNA", argfmin:1, argfmax:100000) { totalCount }
+            }
+        `;
+        this._post({
+            url: this.baseUrl + 'graphql',
+            data: {
+                operationName: null,
+                query: query,
+                variables: "",
+            }
+        }, function(resp){
+            // TODO: process and call callback on that processed data
+            var fixedData = {
+                "featureDensity": 0.01,
+                "featureCount": resp.data.findFeatures.totalCount,
+            }
+            callback(fixedData);
+        }, errorCallback );
+    },
+
+    // The only difference in this code is query.organism is automatically set. The rest is 100% as-is from REST.js
+    getFeatures: function( queryParams, featureCallback, endCallback, errorCallback ) {
+        var organismName = "",
+            refseqName = "",
+            fmin = 100,
+            fmax = 1000;
+        //{ref: "Miro", start: 58499, end: 60999}
+        var thisB = this;
+
+        var featureQueryTerm = `
+        __id
+        name
+        dbxrefId
+        uniquename
+        cvtermByTypeId {
+          name
+        }
+        isAnalysis
+        isObsolete
+        featurelocsByFeatureId {
+          nodes {
+            fmax
+            fmin
+            strand
+            isFminPartial
+            isFmaxPartial
+          }
+        }
+        `;
+
+
+        var query = `
+{
+  findFeatures(argorgname:"yeast",argrefseq:"chrI", argsotype:"gene", argfmin: ` + queryParams.start + `, argfmax: ` + queryParams.end + `) {
+    edges {
+      node {
+      ` + featureQueryTerm + `
+        featureRelationshipsByObjectId {
+          edges {
+            node {
+              featureBySubjectId {
+                ` + featureQueryTerm + `
+                featureRelationshipsByObjectId {
+                  edges {
+                    node {
+                      featureBySubjectId {
+                        ` + featureQueryTerm + `
+                        featureRelationshipsByObjectId {
+                          edges {
+                            node {
+                              featureBySubjectId {
+                                ` + featureQueryTerm + `
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+        `;
+
+        var thisB = this;
+        this._post({
+            url: this.baseUrl + 'graphql',
+            data: {
+                operationName: null,
+                query: query,
+                variables: "",
+            }
+        }, function(resp){
+            function mapNode(node){
+                if (node.cvtermByTypeId.name == 'polypeptide'){
+                    return undefined;
+                }
+                // Basic attribtues
+                var type = node.cvtermByTypeId.name;
+                // Hack to make yeast data look nice...
+                if(type == 'exon'){ type = 'CDS' }
+                var f = {
+                    'uniqueID': node.__id,
+                    'name': node.name,
+                    'description': 'None',
+                    'source': 'exonerate',
+                    'type': type,
+                    'isAnalysis': node.isAnalysis,
+                    'isObsolete': node.isObsolete,
+                    'uniquename': node.uniquename,
+                }
+
+                // Location
+                var floc = node.featurelocsByFeatureId.nodes[0];
+                f.start = floc.fmin;
+                f.end = floc.fmax;
+                f.strand = floc.strand;
+
+                // subfeatures
+                f.subfeatures = node.featureRelationshipsByObjectId.edges.map(function(x){
+                    return mapNode(x.node.featureBySubjectId);
+                }).filter(function(x){ return x !== undefined })
+
+                return f;
+            }
+
+            var featureData = resp.data.findFeatures.edges.map(function(node){ return mapNode(node.node) }).filter(function(x){ return x !== undefined });
+            thisB._makeFeatures( featureCallback, endCallback, errorCallback, { features: featureData } );
+        }, errorCallback);
+    },
+});
+});
