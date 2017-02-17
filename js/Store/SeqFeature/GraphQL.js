@@ -87,25 +87,25 @@ return declare( REST,
 
         var query = `
 {
-  findFeatures(argorgname:"yeast",argrefseq:"chrI", argsotype:"gene", argfmin: ` + queryParams.start + `, argfmax: ` + queryParams.end + `) {
+  findFeatures(argorgname:"yeast",argrefseq:"chrI", argsotype:"gene", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
     edges {
       node {
-      ` + featureQueryTerm + `
+      ${featureQueryTerm}
         featureRelationshipsByObjectId {
           edges {
             node {
               featureBySubjectId {
-                ` + featureQueryTerm + `
+                ${featureQueryTerm}
                 featureRelationshipsByObjectId {
                   edges {
                     node {
                       featureBySubjectId {
-                        ` + featureQueryTerm + `
+                        ${featureQueryTerm}
                         featureRelationshipsByObjectId {
                           edges {
                             node {
                               featureBySubjectId {
-                                ` + featureQueryTerm + `
+                                ${featureQueryTerm}
                               }
                             }
                           }
