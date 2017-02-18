@@ -54,39 +54,92 @@ return declare( REST,
         }, errorCallback );
     },
 
+    _mapNode: function(node){
+        if (node.cvtermByTypeId.name == 'polypeptide'){
+            return undefined;
+        }
+        // Basic attribtues
+        var type = node.cvtermByTypeId.name;
+        // Hack to make yeast data look nice...
+        if(type == 'exon'){ type = 'CDS' }
+        var f = {
+            'uniqueID': node.__id,
+            'name': node.name,
+            'description': 'None',
+            'source': 'exonerate',
+            'type': type,
+            'isAnalysis': node.isAnalysis,
+            'isObsolete': node.isObsolete,
+            'uniquename': node.uniquename,
+        }
+
+        // Location
+        var floc = node.featurelocsByFeatureId.nodes[0];
+        f.start = floc.fmin;
+        f.end = floc.fmax;
+        f.strand = floc.strand;
+
+        var thisB = this;
+        // subfeatures
+        f.subfeatures = node.featureRelationshipsByObjectId.edges.map(function(x){
+            return thisB._mapNode(x.node.featureBySubjectId);
+        }).filter(function(x){ return x !== undefined })
+
+        return f;
+    },
+
     // The only difference in this code is query.organism is automatically set. The rest is 100% as-is from REST.js
     getFeatures: function( queryParams, featureCallback, endCallback, errorCallback ) {
         var organismName = "",
             refseqName = "",
-            fmin = 100,
-            fmax = 1000;
-        //{ref: "Miro", start: 58499, end: 60999}
+            query = "";
         var thisB = this;
 
-        var featureQueryTerm = `
-        __id
-        name
-        dbxrefId
-        uniquename
-        cvtermByTypeId {
-          name
-        }
-        isAnalysis
-        isObsolete
-        featurelocsByFeatureId {
-          nodes {
-            fmax
-            fmin
-            strand
-            isFminPartial
-            isFmaxPartial
-          }
-        }
-        `;
 
 
-        var query = `
-{
+
+        if(queryParams.reference_sequences_only){
+            // 1-based indexing used in substring in postgres
+            queryParams.start += 1;
+            queryParams.end   += 1;
+
+            // This one is a special snowflake
+            if(queryParams.start < 0){
+                queryParams.start = queryParams.start + 3;
+                queryParams.end = queryParams.end + 0;
+            }
+
+            // Then shift back to 0-based indexing
+            queryParams.rstart = queryParams.start - 1;
+            queryParams.rend = queryParams.end - 1;
+
+            realQstart = queryParams.start;
+            realQlen = queryParams.end - queryParams.start + 1;
+            var query = `{sequence: findSequence(argorgname:"yeast",argrefseq:"${queryParams.ref}", argfmin: ${realQstart}, argflen: ${realQlen})}`;
+
+        } else {
+            var featureQueryTerm = `
+__id
+name
+dbxrefId
+uniquename
+cvtermByTypeId {
+  name
+}
+isAnalysis
+isObsolete
+featurelocsByFeatureId {
+  nodes {
+    fmax
+    fmin
+    strand
+    isFminPartial
+    isFmaxPartial
+  }
+}`;
+
+
+            var query = `{
   findFeatures(argorgname:"yeast",argrefseq:"chrI", argsotype:"gene", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
     edges {
       node {
@@ -121,8 +174,9 @@ return declare( REST,
       }
     }
   }
-}
-        `;
+}`;
+
+        }
 
         var thisB = this;
         this._post({
@@ -133,40 +187,16 @@ return declare( REST,
                 variables: "",
             }
         }, function(resp){
-            function mapNode(node){
-                if (node.cvtermByTypeId.name == 'polypeptide'){
-                    return undefined;
-                }
-                // Basic attribtues
-                var type = node.cvtermByTypeId.name;
-                // Hack to make yeast data look nice...
-                if(type == 'exon'){ type = 'CDS' }
-                var f = {
-                    'uniqueID': node.__id,
-                    'name': node.name,
-                    'description': 'None',
-                    'source': 'exonerate',
-                    'type': type,
-                    'isAnalysis': node.isAnalysis,
-                    'isObsolete': node.isObsolete,
-                    'uniquename': node.uniquename,
-                }
-
-                // Location
-                var floc = node.featurelocsByFeatureId.nodes[0];
-                f.start = floc.fmin;
-                f.end = floc.fmax;
-                f.strand = floc.strand;
-
-                // subfeatures
-                f.subfeatures = node.featureRelationshipsByObjectId.edges.map(function(x){
-                    return mapNode(x.node.featureBySubjectId);
-                }).filter(function(x){ return x !== undefined })
-
-                return f;
+            var featureData;
+            if(queryParams.reference_sequences_only){
+                featureData = [
+                    {'seq': resp.data.sequence, 'start': queryParams.rstart, 'end': queryParams.rend}
+                ];
+                console.log(resp.data.sequence, queryParams.start, queryParams.end, queryParams.rstart, queryParams.rend, '=', resp.data.sequence.length, query);
+            } else {
+                featureData = resp.data.findFeatures.edges.map(function(node){ return thisB._mapNode(node.node) }).filter(function(x){ return x !== undefined });
             }
 
-            var featureData = resp.data.findFeatures.edges.map(function(node){ return mapNode(node.node) }).filter(function(x){ return x !== undefined });
             thisB._makeFeatures( featureCallback, endCallback, errorCallback, { features: featureData } );
         }, errorCallback);
     },
