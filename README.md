@@ -12,11 +12,26 @@ Which translates easily into the nested feature model used by genomics data:
 ## Example configuration
 
 ```json
-{
-"baseUrl"    : "http://localhost:5000/",
-"label"      : "GraphQL",
-"key"        : "PostGraphQL Features",
-"type"       : "JBrowse/View/Track/CanvasFeatures",
-"storeClass" : "PostGraphQL/Store/SeqFeature/GraphQL",
-}
+"refSeqs": "http://localhost:9997",
+"tracks" : [
+	{
+		"name": "refseqs",
+		"label":      "DNA",
+		"key":        "DNA",
+		"type":       "JBrowse/View/Track/Sequence",
+		"storeClass": "PostGraphQL/Store/SeqFeature/GraphQL",
+		"baseUrl"    : "http://localhost:5000/",
+		"useAsRefSeqStore": true,
+		"query": {
+			"sequence": true
+		}
+	},
+	{
+		"baseUrl"    : "http://localhost:5000/",
+		"label"      : "GraphQL",
+		"key"        : "PostGraphQL Features",
+		"type"       : "JBrowse/View/Track/CanvasFeatures",
+		"storeClass" : "PostGraphQL/Store/SeqFeature/GraphQL",
+	}
+]
 ```
