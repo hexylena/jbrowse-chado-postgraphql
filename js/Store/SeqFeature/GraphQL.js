@@ -47,7 +47,7 @@ return declare( REST,
         }, function(resp){
             // TODO: process and call callback on that processed data
             var fixedData = {
-                "featureDensity": 0.01,
+                "featureDensity": 0.001,
                 "featureCount": resp.data.findFeatures.totalCount,
             }
             callback(fixedData);
