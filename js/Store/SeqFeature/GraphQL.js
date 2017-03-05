@@ -63,7 +63,7 @@ return declare( REST,
         // Hack to make yeast data look nice...
         if(type == 'exon'){ type = 'CDS' }
         var f = {
-            'uniqueID': node.__id,
+            'uniqueID': node.uniquename,
             'name': node.name,
             'description': 'None',
             'source': 'exonerate',
@@ -116,7 +116,6 @@ return declare( REST,
 
         } else {
             var featureQueryTerm = `
-__id
 name
 dbxrefId
 uniquename
@@ -188,7 +187,7 @@ featurelocsByFeatureId {
                 featureData = [
                     {'seq': resp.data.sequence, 'start': queryParams.rstart, 'end': queryParams.rend}
                 ];
-                console.log(resp.data.sequence, queryParams.start, queryParams.end, queryParams.rstart, queryParams.rend, '=', resp.data.sequence.length, query);
+                //console.log(resp.data.sequence, queryParams.start, queryParams.end, queryParams.rstart, queryParams.rend, '=', resp.data.sequence.length, query);
             } else {
                 featureData = resp.data.findFeatures.edges.map(function(node){ return thisB._mapNode(node.node) }).filter(function(x){ return x !== undefined });
             }
