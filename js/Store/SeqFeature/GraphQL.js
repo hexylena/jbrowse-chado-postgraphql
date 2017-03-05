@@ -115,7 +115,7 @@ return declare( REST,
 
         } else {
             var query = `{
-  findFeatures(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argsotype:"mRNA", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
+  findFeatures(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argsotype:"gene", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
     edges {
       node {
       ...featProps
@@ -129,6 +129,15 @@ return declare( REST,
                     node {
                       featureBySubjectId {
                         ...featProps
+                        featureRelationshipsByObjectId {
+                          edges {
+                            node {
+                              featureBySubjectId {
+                                ...featProps
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
