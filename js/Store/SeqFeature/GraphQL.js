@@ -61,7 +61,6 @@ return declare( REST,
         // Basic attribtues
         var type = node.cvtermByTypeId.name;
         // Hack to make yeast data look nice...
-        if(type == 'exon'){ type = 'CDS' }
         var f = {
             'uniqueID': node.uniquename,
             'name': node.name,
@@ -115,49 +114,21 @@ return declare( REST,
             var query = `{sequence: findSequence(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argfmin: ${realQstart}, argflen: ${realQlen})}`;
 
         } else {
-            var featureQueryTerm = `
-name
-dbxrefId
-uniquename
-cvtermByTypeId {
-  name
-}
-isAnalysis
-isObsolete
-featurelocsByFeatureId {
-  nodes {
-    fmax
-    fmin
-    strand
-    isFminPartial
-    isFmaxPartial
-  }
-}`;
-
             var query = `{
-  findFeatures(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argsotype:"gene", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
+  findFeatures(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argsotype:"mRNA", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
     edges {
       node {
-      ${featureQueryTerm}
+      ...featProps
         featureRelationshipsByObjectId {
           edges {
             node {
               featureBySubjectId {
-                ${featureQueryTerm}
+                ...featProps
                 featureRelationshipsByObjectId {
                   edges {
                     node {
                       featureBySubjectId {
-                        ${featureQueryTerm}
-                        featureRelationshipsByObjectId {
-                          edges {
-                            node {
-                              featureBySubjectId {
-                                ${featureQueryTerm}
-                              }
-                            }
-                          }
-                        }
+                        ...featProps
                       }
                     }
                   }
@@ -169,7 +140,28 @@ featurelocsByFeatureId {
       }
     }
   }
-}`;
+}
+
+fragment featProps on Feature {
+  name
+  dbxrefId
+  uniquename
+  cvtermByTypeId {
+    name
+  }
+  isAnalysis
+  isObsolete
+  featurelocsByFeatureId {
+    nodes {
+      fmax
+      fmin
+      strand
+      isFminPartial
+      isFmaxPartial
+    }
+  }
+}
+`;
 
         }
 
