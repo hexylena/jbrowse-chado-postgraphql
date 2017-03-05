@@ -34,7 +34,7 @@ return declare( REST,
     getGlobalStats: function( callback, errorCallback ) {
         var query = `
             {
-            findFeatures(argorgname:"yeast",argrefseq:"chrI", argsotype:"mRNA", argfmin:1, argfmax:100000) { totalCount }
+            findFeatures(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argsotype:"gene", argfmin:1, argfmax:100000) { totalCount }
             }
         `;
         this._post({
@@ -95,9 +95,6 @@ return declare( REST,
             query = "";
         var thisB = this;
 
-
-
-
         if(queryParams.reference_sequences_only){
             // 1-based indexing used in substring in postgres
             queryParams.start += 1;
@@ -115,7 +112,7 @@ return declare( REST,
 
             realQstart = queryParams.start;
             realQlen = queryParams.end - queryParams.start + 1;
-            var query = `{sequence: findSequence(argorgname:"yeast",argrefseq:"${queryParams.ref}", argfmin: ${realQstart}, argflen: ${realQlen})}`;
+            var query = `{sequence: findSequence(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argfmin: ${realQstart}, argflen: ${realQlen})}`;
 
         } else {
             var featureQueryTerm = `
@@ -138,9 +135,8 @@ featurelocsByFeatureId {
   }
 }`;
 
-
             var query = `{
-  findFeatures(argorgname:"yeast",argrefseq:"chrI", argsotype:"gene", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
+  findFeatures(argorgname:"${this.refSeq.organism}",argrefseq:"${this.refSeq.name}", argsotype:"gene", argfmin: ${queryParams.start}, argfmax: ${queryParams.end}) {
     edges {
       node {
       ${featureQueryTerm}
